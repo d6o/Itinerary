@@ -4,41 +4,49 @@ import (
 	"net/http"
 )
 
+// IRequestMatcher tests if a request match with the condition.
 type IRequestMatcher interface {
 	Match(*http.Request) bool
 }
 
-type IRoute interface {
-	SetHandler(func(http.ResponseWriter, *http.Request)) IRoute
+// IPath represent one of the many paths a request can get.
+type IPath interface {
+	SetHandler(func(http.ResponseWriter, *http.Request)) IPath
 	Match(*http.Request) bool
-	AddMatcher(matcher IRequestMatcher) IRoute
+	AddMatcher(matcher IRequestMatcher) IPath
 	Handler() http.Handler
 }
 
-type Route struct {
+// Path implements IPath with a MatcherList who will dictate if the request can go though that path.
+type Path struct {
 	handler     http.Handler
 	matcherList []IRequestMatcher
 }
 
-func NewRoute() *Route {
-	return &Route{}
+// NewPath is the Path constructor.
+func NewPath() *Path {
+	return &Path{}
 }
 
-func (r *Route) Handler() http.Handler {
+// Handler is the getter to the handler var which is the goal of the path.
+func (r *Path) Handler() http.Handler {
 	return r.handler
 }
 
-func (r *Route) SetHandler(f func(http.ResponseWriter, *http.Request)) IRoute {
+// SetHandler determine the goal of the request.
+func (r *Path) SetHandler(f func(http.ResponseWriter, *http.Request)) IPath {
 	r.handler = http.HandlerFunc(f)
 	return r
 }
 
-func (r *Route) AddMatcher(matcher IRequestMatcher) IRoute {
+// AddMatcher put a new condition to request take the path.
+func (r *Path) AddMatcher(matcher IRequestMatcher) IPath {
 	r.matcherList = append(r.matcherList, matcher)
 	return r
 }
 
-func (r *Route) Match(req *http.Request) bool {
+// Match verify if the request can take this path.
+func (r *Path) Match(req *http.Request) bool {
 	for _, k := range r.matcherList {
 		if k.Match(req) != true {
 			return false

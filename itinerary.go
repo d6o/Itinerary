@@ -13,7 +13,7 @@ const (
 
 // Router is a HTTP Server Handler implementation.
 type Router struct {
-	routes []IRoute
+	routes []IPath
 	Prefix string
 }
 
@@ -22,16 +22,16 @@ func NewRouter() *Router {
 	return &Router{Prefix: prefix}
 }
 
-// HandleFunc Gorilla Mux compatible function to insert new routes to the router.
-func (r *Router) HandleFunc(f func(http.ResponseWriter, *http.Request)) IRoute {
-	route := NewRoute()
+// NewPath creates a new alternative path that the request can take.
+func (r *Router) NewPath(f func(http.ResponseWriter, *http.Request)) IPath {
+	route := NewPath()
 	r.routes = append(r.routes, route)
 	return route.SetHandler(f)
 }
 
-// ServeHTTP find the right route and calls it handler.
+// ServeHTTP find the right path and calls it handler.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.HandleRoute(req)
+	r.routeToQuery(req)
 	handler := r.Match(req)
 
 	if handler == nil {
@@ -41,7 +41,14 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	handler.ServeHTTP(w, req)
 }
 
-// Match loop all routes until find the right one.
+// AddMatcher add a new condition in all paths already registered.
+func (r *Router) AddMatcher(matcher IRequestMatcher) {
+	for _, route := range r.routes {
+		route.AddMatcher(matcher)
+	}
+}
+
+// Match loop all paths until find the right one.
 func (r *Router) Match(req *http.Request) http.Handler {
 	for _, route := range r.routes {
 		if !route.Match(req) {
@@ -52,7 +59,8 @@ func (r *Router) Match(req *http.Request) http.Handler {
 	return nil
 }
 
-func (r *Router) HandleRoute(req *http.Request) {
+// routeToQuery makes the routes parts accessible trough Query String
+func (r *Router) routeToQuery(req *http.Request) {
 	req.URL.Path = strings.Trim(req.URL.Path, "/")
 	if req.URL.Path == "" {
 		return
